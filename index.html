@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mor Sohbet</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#07050b">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js"></script>
+<style>
+:root{
+  --lift:0px;
+  --bg:#07050b; --rail:#040207; --panel:#0d0914; --panel2:#150f20; --hover:#1a1327;
+  --line:#21172f; --acc:#4b2390; --acc2:#5f31ad; --soft:#a48be0;
+  --mine:#2f1761; --theirs:#171021;
+  --text:#e8e1f4; --mute:#7f7396; --ok:#3fcf8e; --bad:#c9395a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,sans-serif;display:flex;overflow:hidden;padding-bottom:var(--lift,56px)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+svg{width:20px;height:20px;fill:currentColor;display:block}
+:focus-visible{outline:2px solid var(--soft);outline-offset:2px}
+input{font:inherit;color:var(--text);background:var(--rail);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input::placeholder{color:var(--mute)}
+input:focus{border-color:var(--acc2);outline:none}
+.btn{background:var(--acc);color:#fff;padding:10px 14px;border-radius:10px;font-weight:600}
+.btn:hover{background:var(--acc2)}
+.btn.ghost{background:var(--panel2);border:1px solid var(--line);font-weight:500}
+.btn.ghost:hover{background:var(--hover)}
+.btn.bad{background:var(--bad)}
+.ib{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:var(--mute)}
+.ib:hover{background:var(--hover);color:var(--text)}
+.ib.act{color:var(--soft);background:var(--hover)}
+
+/* sol sütun */
+#side{width:330px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;height:100%}
+.sh{display:flex;align-items:center;gap:4px;padding:14px 12px 8px 16px}
+.sh h1{flex:1;font-size:20px;font-weight:700}
+.sq{padding:4px 12px 10px}
+#list{flex:1;overflow:auto;padding:4px 8px}
+.fr{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:12px;cursor:pointer}
+.fr:hover{background:var(--hover)}
+.fr.act{background:var(--panel2)}
+.av{position:relative;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-weight:700;flex:none;color:#e9dcff}
+.av .st{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:#3a3050;border:2px solid var(--panel)}
+.av .st.on{background:var(--ok)}
+.fr .nm{flex:1;min-width:0}
+.fr .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fr .nm span{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.badge{background:var(--acc2);border-radius:20px;font-size:12px;padding:1px 8px;font-weight:700}
+.x{color:var(--mute);padding:4px 8px;border-radius:8px;opacity:0}
+.fr:hover .x{opacity:1}
+.x:hover{color:var(--bad)}
+.empty{color:var(--mute);padding:20px 12px;font-size:14px;line-height:1.5}
+
+/* ses çubuğu */
+#voicebar{display:none;padding:10px 12px;border-top:1px solid var(--line);background:var(--rail);align-items:center;gap:10px}
+#voicebar.show{display:flex}
+#voicebar .info{flex:1;min-width:0}
+#voicebar .info b{display:block;font-size:13px;color:var(--ok)}
+#voicebar .info span{font-size:12px;color:var(--mute)}
+#voicebar .info em{font-style:normal;font-variant-numeric:tabular-nums}
+.hang{background:var(--bad);color:#fff}
+.hang svg{transform:rotate(135deg)}
+
+/* kullanıcı paneli */
+.me{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--rail);border-top:1px solid var(--line);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+.me .t{flex:1;min-width:0}
+.me .t b{display:block;letter-spacing:.12em;font-variant-numeric:tabular-nums}
+.me .t span{font-size:12px;color:var(--mute)}
+
+/* sohbet alanı */
+#main{flex:1;display:flex;flex-direction:column;min-width:0;height:100%;background:
+  radial-gradient(900px 500px at 80% -10%,rgba(75,35,144,.14),transparent 60%),var(--bg)}
+#welcome{margin:auto;text-align:center;color:var(--mute);padding:24px;line-height:1.7;max-width:420px}
+#welcome h2{color:var(--text);font-size:24px;margin-bottom:8px}
+#chatview{display:none;flex-direction:column;height:100%}
+#head{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+#head .t{flex:1;min-width:0}
+#head .t b{display:block}
+#head .t span{font-size:12px;color:var(--mute)}
+#back{display:none}
+#msearch{display:none;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+#msearch.show{display:block}
+#msgs{flex:1;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.m{max-width:min(70%,560px);padding:8px 12px 6px;border-radius:14px;border-top-left-radius:4px;background:var(--theirs);align-self:flex-start;word-break:break-word;white-space:pre-wrap;line-height:1.4}
+.m.me{background:var(--mine);align-self:flex-end;border-radius:14px;border-top-right-radius:4px}
+.m small{display:block;font-size:11px;color:var(--mute);margin-top:2px;text-align:right}
+.m.me small{color:#a994d8}
+.m img{max-width:100%;max-height:260px;border-radius:8px;display:block;margin-bottom:4px}
+.m a{color:var(--soft)}
+.m mark{background:#5f31ad;color:#fff;border-radius:3px}
+.sys{align-self:center;color:var(--mute);font-size:12px;background:var(--panel);padding:4px 12px;border-radius:20px}
+#bar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-top:1px solid var(--line);background:var(--panel);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+#bar input{border-radius:22px;padding:11px 16px}
+#send{width:42px;height:42px;border-radius:50%;background:var(--acc);display:grid;place-items:center;flex:none}
+#send:hover{background:var(--acc2)}
+
+/* katmanlar */
+.ov{position:fixed;inset:0;background:rgba(3,1,6,.8);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.ov.show{display:flex}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;width:min(400px,100%);max-height:80vh;overflow:auto}
+.card h2{font-size:18px;margin-bottom:12px}
+.card .row{display:flex;gap:8px;margin-top:14px}
+.card .row .btn{flex:1}
+.card label{display:block;font-size:13px;color:var(--mute);margin:10px 0 4px}
+.ring{text-align:center}
+.ring .av{width:84px;height:84px;font-size:32px;margin:0 auto 12px}
+@media(prefers-reduced-motion:no-preference){
+  .ring .av{animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 14px rgba(95,49,173,.25)}}
+}
+#permmsg{color:var(--text);line-height:1.5;margin-bottom:4px}
+#permmsg.warn{color:#ff9db3}
+#toast{position:fixed;left:50%;bottom:calc(var(--lift,56px) + 24px);transform:translateX(-50%);background:var(--panel2);border:1px solid var(--acc2);padding:10px 16px;border-radius:12px;display:none;z-index:99;max-width:90%}
+
+@media(max-width:760px){
+  #side{width:100%}
+  #main{display:none;width:100%}
+  body.chat #side{display:none}
+  body.chat #main{display:flex}
+  #back{display:grid}
+  .m{max-width:86%}
+  .x{opacity:1}
+}
+</style>
+</head>
+<body>
+
+<aside id="side">
+  <div class="sh">
+    <h1>Sohbetler</h1>
+    <button class="ib" id="scan" title="Çevrim içi olanları tara"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 00-9 9h2a7 7 0 017-7V3zm0 4a5 5 0 00-5 5h2a3 3 0 013-3V7zm0 4a1 1 0 100 2 1 1 0 000-2zm0-8v2a7 7 0 017 7h2a9 9 0 00-9-9zm0 4v2a3 3 0 013 3h2a5 5 0 00-5-5zM3 19v2h18v-2H3z"/></svg></button>
+    <button class="ib" id="addopen" title="Arkadaş ekle"><svg viewBox="0 0 24 24"><path d="M15 12a4 4 0 100-8 4 4 0 000 8zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.7 0-8 1.3-8 4v2h16v-2c0-2.7-5.3-4-8-4z"/></svg></button>
+  </div>
+  <div class="sq"><input id="q" placeholder="Kişi ara (ad ya da numara)" autocomplete="off"></div>
+  <div id="list"></div>
+  <div id="voicebar">
+    <div class="info"><b id="vstate">Sesli arama</b><span id="vname"></span> <em id="vtime"></em></div>
+    <button class="ib" id="vmute" title="Mikrofonu sustur"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-3.1A7 7 0 0019 11h-2z"/></svg></button>
+    <button class="ib hang" id="vhang" title="Aramayı bitir"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.6 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z"/></svg></button>
+  </div>
+  <div class="me">
+    <div class="av" id="myav">S<span class="st" id="mydot"></span></div>
+    <div class="t"><b id="myid">-------</b><span id="mystat">Bağlanıyor…</span></div>
+    <button class="ib" id="bellbtn" title="Bildirimler"><svg viewBox="0 0 24 24"><path d="M12 22a2 2 0 002-2h-4a2 2 0 002 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 00-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg></button>
+    <button class="ib" id="permopen" title="Mikrofon izni"><svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 00-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.9V21h2v-3.1A7 7 0 0019 11h-2z"/></svg></button>
+    <button class="ib" id="copy" title="Numarayı kopyala"><svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 00-2 2v14h2V3h12V1zm3 4H8a2 2 0 00-2 2v14a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2zm0 16H8V7h11v14z"/></svg></button>
+  </div>
+</aside>
+
+<section id="main">
+  <div id="welcome">
+    <h2>Mor Sohbet</h2>
+    Soldan bir kişi seç ya da kişi ekle düğmesiyle arkadaşının 7 haneli numarasını gir.
+    Sohbetler sunucuya gitmez, sayfa kapanınca silinir.
+  </div>
+  <div id="chatview">
+    <div id="head">
+      <button class="ib" id="back" title="Geri"><svg viewBox="0 0 24 24"><path d="M20 11H7.8l5.6-5.6L12 4l-8 8 8 8 1.4-1.4L7.8 13H20v-2z"/></svg></button>
+      <div class="av" id="hav"><span class="st" id="hdot"></span></div>
+      <div class="t"><b id="hname"></b><span id="hid"></span></div>
+      <button class="btn ghost" id="hadd" style="display:none">Kişi olarak ekle</button>
+      <button class="ib" id="hedit" title="Adı düzenle" style="display:none"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+      <button class="ib" id="msearchbtn" title="Sohbette ara"><svg viewBox="0 0 24 24"><path d="M15.5 14h-.8l-.3-.3A6.5 6.5 0 109.5 16a6.5 6.5 0 004.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0a4.5 4.5 0 110-9 4.5 4.5 0 010 9z"/></svg></button>
+      <button class="ib" id="callbtn" title="Sesli ara"><svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.6 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z"/></svg></button>
+    </div>
+    <div id="msearch"><input id="mq" placeholder="Bu sohbette ara" autocomplete="off"></div>
+    <div id="msgs"></div>
+    <div id="bar">
+      <button class="ib" id="attach" title="Dosya gönder"><svg viewBox="0 0 24 24"><path d="M16.5 6v11.5a4 4 0 01-8 0V5a2.5 2.5 0 015 0v10.5a1 1 0 01-2 0V6H10v9.5a2.5 2.5 0 005 0V5a4 4 0 00-8 0v12.5a5.5 5.5 0 0011 0V6h-1.5z"/></svg></button>
+      <input type="file" id="file" hidden>
+      <input id="txt" placeholder="Mesaj yaz" autocomplete="off">
+      <button id="send" title="Gönder"><svg viewBox="0 0 24 24"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<!-- kişi ekle -->
+<div class="ov" id="addov"><div class="card">
+  <h2>Kişi ekle</h2>
+  <label for="addid">7 haneli numara</label>
+  <input id="addid" inputmode="numeric" maxlength="7" placeholder="4827193">
+  <label for="addname">Takma ad (isteğe bağlı)</label>
+  <input id="addname" maxlength="24" placeholder="Örn. Ali">
+  <div class="row"><button class="btn ghost" id="addcancel">Vazgeç</button><button class="btn" id="addbtn">Ekle</button></div>
+</div></div>
+
+<!-- tarama sonucu -->
+<div class="ov" id="scanov"><div class="card">
+  <h2 id="scantitle">Taranıyor…</h2>
+  <div id="scanres"></div>
+  <div class="row"><button class="btn ghost" id="scanclose">Kapat</button></div>
+</div></div>
+
+<!-- gelen arama -->
+<div class="ov" id="inov"><div class="card ring">
+  <div class="av" id="inav"></div>
+  <h2 id="inname"></h2>
+  <div style="color:var(--mute)">Gelen sesli arama</div>
+  <div class="row"><button class="btn bad" id="inno">Reddet</button><button class="btn" id="inyes" style="background:var(--ok);color:#06120c">Kabul et</button></div>
+</div></div>
+
+<!-- bildirim izni -->
+<div class="ov" id="pushov"><div class="card">
+  <h2>Bildirimler</h2>
+  <div style="line-height:1.5">Sen çevrim dışıyken biri yazarsa "Ali sana yazmak istiyor" bildirimi gelsin. Siteyi açınca mesaj sana ulaşır. Bekleyen mesajlar şifreli saklanır, sunucu içeriği göremez.</div>
+  <div class="row"><button class="btn ghost" id="pushlater">Sonra</button><button class="btn" id="pushallow">Bildirimleri aç</button></div>
+</div></div>
+
+<!-- ad düzenle -->
+<div class="ov" id="renov"><div class="card">
+  <h2>Adı düzenle</h2>
+  <label for="renname">Yeni ad</label>
+  <input id="renname" maxlength="24" autocomplete="off">
+  <div class="row"><button class="btn ghost" id="rencancel">Vazgeç</button><button class="btn" id="rensave">Kaydet</button></div>
+</div></div>
+
+<!-- mikrofon izni -->
+<div class="ov" id="permov"><div class="card">
+  <h2>Mikrofon izni</h2>
+  <div id="permmsg"></div>
+  <div class="row"><button class="btn ghost" id="permlater">Sonra</button><button class="btn" id="permallow">İzin ver</button></div>
+</div></div>
+
+<audio id="remote" autoplay></audio>
+<div id="toast"></div>
+
+<script>
+(function(){
+const PFX = 'morsohbet-';
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+let myId = store.get('myId', null);
+if(!myId){ myId = String(Math.floor(1000000 + Math.random()*9000000)); store.set('myId', myId); }
+$('myid').textContent = myId;
+setAv($('myav'), 'Ben', myId);
+
+let friends = store.get('friends', []);
+const chats = {}, unread = {}, online = {}, conns = {};
+let cur = null, peer = null, mfilter = '';
+
+function toast(t){ const el=$('toast'); el.textContent=t; el.style.display='block'; clearTimeout(toast.t); toast.t=setTimeout(()=>el.style.display='none',3000); }
+const isFriend = id => friends.some(f => f.id === id);
+const nameOf = id => (friends.find(f => f.id === id) || {}).name || ('Bilinmeyen ' + id);
+const hhmm = () => new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+
+// avatar: ada göre koyu mor tonları
+function setAv(el, name, id){
+  const st = el.querySelector('.st');
+  const h = 255 + (parseInt(id.slice(-3),10) % 40);
+  el.style.background = 'hsl(' + h + ',38%,24%)';
+  el.firstChild && el.firstChild.nodeType === 3 ? el.firstChild.nodeValue = (name.trim()[0]||'?').toUpperCase() : el.insertBefore(document.createTextNode((name.trim()[0]||'?').toUpperCase()), el.firstChild);
+  if(st && st.parentNode !== el) el.appendChild(st);
+}
+
+/* ---------- sunucu, şifreleme, bildirim ---------- */
+const enc = new TextEncoder(), dec = new TextDecoder();
+const b64 = buf => { const u = new Uint8Array(buf); let s = ''; for(let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]); return btoa(s); };
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const randHex = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+let token = store.get('token', null);
+if(!token){ token = randHex(32); store.set('token', token); }
+let keys = null, serverOk = false, vapidKey = null, swReg = null, ready = Promise.resolve();
+const newId = () => String(Math.floor(1000000 + Math.random() * 9000000));
+const fmtTime = t => new Date(t).toLocaleTimeString('tr-TR', {hour: '2-digit', minute: '2-digit'});
+
+function saveFriends(){
+  store.set('friends', friends);
+  try{
+    if('caches' in window){
+      const map = {}; friends.forEach(f => map[f.id] = f.name);
+      caches.open('mor-data').then(c => c.put('/__friends.json', new Response(JSON.stringify(map), {headers: {'content-type': 'application/json'}})));
+    }
+  }catch(e){}
+}
+
+async function api(path, opts, auth){
+  opts = opts || {};
+  const h = {'content-type': 'application/json'};
+  if(auth !== false){ h['x-id'] = myId; h['x-token'] = token; }
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), 10000);
+  try{
+    const r = await fetch('/api' + path, {method: opts.method || 'GET', body: opts.body, headers: h, signal: ctl.signal});
+    let j = {}; try{ j = await r.json(); }catch(e){}
+    j.status = r.status; return j;
+  } finally { clearTimeout(to); }
+}
+
+async function initKeys(){
+  let j = store.get('ecdh', null);
+  if(!j){
+    const kp = await crypto.subtle.generateKey({name: 'ECDH', namedCurve: 'P-256'}, true, ['deriveKey']);
+    const pr = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    const pb = await crypto.subtle.exportKey('jwk', kp.publicKey);
+    j = {priv: pr, pub: {kty: pb.kty, crv: pb.crv, x: pb.x, y: pb.y}};
+    store.set('ecdh', j);
+  }
+  const priv = await crypto.subtle.importKey('jwk', j.priv, {name: 'ECDH', namedCurve: 'P-256'}, false, ['deriveKey']);
+  keys = {priv: priv, pub: j.pub};
+}
+async function sharedKey(p){
+  const pub = await crypto.subtle.importKey('jwk', {kty: p.kty, crv: p.crv, x: p.x, y: p.y}, {name: 'ECDH', namedCurve: 'P-256'}, false, []);
+  return crypto.subtle.deriveKey({name: 'ECDH', public: pub}, keys.priv, {name: 'AES-GCM', length: 256}, false, ['encrypt', 'decrypt']);
+}
+async function encryptFor(id, text){
+  const k = await api('/key/' + id, {}, false);
+  if(k.status === 404) throw new Error('nouser');
+  if(k.status !== 200 || !k.pub) throw new Error('nokey');
+  const key = await sharedKey(k.pub);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({name: 'AES-GCM', iv: iv}, key, enc.encode(text));
+  return {iv: b64(iv), data: b64(ct), spub: keys.pub};
+}
+async function decryptMsg(m){
+  const key = await sharedKey(m.spub);
+  const pt = await crypto.subtle.decrypt({name: 'AES-GCM', iv: unb64(m.iv)}, key, unb64(m.data));
+  return dec.decode(pt);
+}
+
+let fetching = false;
+async function fetchInbox(){
+  if(!serverOk || fetching || !keys) return;
+  fetching = true;
+  try{
+    const r = await api('/inbox');
+    if(r.status !== 200 || !r.messages || !r.messages.length) return;
+    const done = [];
+    for(const m of r.messages){
+      let text;
+      try{ text = await decryptMsg(m); }catch(e){ text = '(Şifre çözülemedi)'; }
+      pushMsg(m.from, {me: false, text: text, time: fmtTime(m.t), late: true});
+      done.push(m.key);
+    }
+    if(done.length) await api('/ack', {method: 'POST', body: JSON.stringify({keys: done})});
+  }catch(e){}
+  finally { fetching = false; }
+}
+
+async function init(){
+  try{ await initKeys(); }catch(e){ keys = null; }
+  if(keys){
+    for(let i = 0; i < 6; i++){
+      try{
+        const r = await api('/register', {method: 'POST', body: JSON.stringify({pub: keys.pub})});
+        if(r.status === 200){ serverOk = true; break; }
+        if(r.status === 409){
+          myId = newId(); token = randHex(32);
+          store.set('myId', myId); store.set('token', token);
+          $('myid').textContent = myId; setAv($('myav'), 'Ben', myId);
+          continue;
+        }
+        break;
+      }catch(e){ break; }
+    }
+  }
+  start();
+  saveFriends();
+  if(serverOk){
+    fetchInbox();
+    if('Notification' in window && Notification.permission === 'granted'){ subscribePush().catch(() => {}); $('bellbtn').classList.add('act'); }
+    else getSW();
+  }
+}
+
+/* bildirimler */
+function updateTitle(){
+  const n = Object.keys(unread).reduce((a, k) => a + (unread[k] || 0), 0);
+  document.title = (n ? '(' + n + ') ' : '') + 'Mor Sohbet';
+}
+function notify(title, body, tag){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  try{
+    if(swReg) swReg.showNotification(title, {body: body, tag: tag, icon: '/icon-192.png', badge: '/icon-192.png'});
+    else new Notification(title, {body: body, tag: tag});
+  }catch(e){}
+}
+function urlB64(s){
+  const p = '='.repeat((4 - s.length % 4) % 4);
+  const b = (s + p).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(b), c => c.charCodeAt(0));
+}
+async function getSW(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{ swReg = await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready; return swReg; }
+  catch(e){ return null; }
+}
+async function subscribePush(){
+  if(!serverOk || !('PushManager' in window)) return false;
+  const reg = await getSW(); if(!reg) return false;
+  if(!vapidKey){ const c = await api('/config', {}, false); vapidKey = c.vapid; }
+  if(!vapidKey) return false;
+  let sub = await reg.pushManager.getSubscription();
+  if(!sub){
+    try{ sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: urlB64(vapidKey)}); }
+    catch(e){ return false; }
+  }
+  const r = await api('/push', {method: 'POST', body: JSON.stringify({subscription: sub.toJSON()})});
+  return r.status === 200;
+}
+async function enablePush(){
+  if(!serverOk){ toast('Bildirim için siteye https adresinden girmelisin'); return; }
+  if(!('Notification' in window) || !('PushManager' in window)){
+    toast("Bu cihazda bildirim yok. iPhone'da önce siteyi Ana ekrana ekle."); return;
+  }
+  const p = await Notification.requestPermission();
+  if(p !== 'granted'){ toast('Bildirim izni verilmedi'); return; }
+  let ok = false;
+  try{ ok = await subscribePush(); }catch(e){}
+  $('bellbtn').classList.toggle('act', ok);
+  toast(ok ? 'Bildirimler açık' : 'Bildirim kaydedilemedi');
+}
+function maybePushPrompt(){
+  if(!serverOk || !('Notification' in window) || !('PushManager' in window)) return;
+  if(Notification.permission !== 'default' || store.get('pushSkip', false)) return;
+  $('pushov').classList.add('show');
+}
+$('pushallow').onclick = async () => { $('pushov').classList.remove('show'); await enablePush(); };
+$('pushlater').onclick = () => { store.set('pushSkip', true); $('pushov').classList.remove('show'); };
+$('bellbtn').onclick = enablePush;
+
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden){
+    if(cur){ unread[cur] = 0; renderList(); }
+    updateTitle(); fetchInbox();
+  }
+});
+window.addEventListener('online', fetchInbox);
+if('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => { if(e.data && e.data.t === 'inbox') fetchInbox(); });
+
+/* ---------- bağlantı ---------- */
+let retries = 0;
+function start(){
+  peer = new Peer(PFX + myId, {debug:0});
+  peer.on('open', () => { retries = 0; $('mydot').classList.add('on'); $('mystat').textContent = 'Çevrim içi'; });
+  peer.on('disconnected', () => { $('mydot').classList.remove('on'); $('mystat').textContent = 'Yeniden bağlanıyor…'; try{ peer.reconnect(); }catch(e){} });
+  peer.on('error', e => {
+    if(e.type === 'unavailable-id'){
+      if(retries++ < 3){ $('mystat').textContent = 'Numara kullanımda, deneniyor…'; peer.destroy(); setTimeout(start, 3000); }
+      else $('mystat').textContent = 'Numara başka yerde açık';
+    } else if(['network','server-error','socket-error'].includes(e.type)) $('mystat').textContent = 'Ağ hatası';
+  });
+  peer.on('connection', conn => {
+    if(conn.metadata && conn.metadata.kind === 'scan'){ conn.on('open', () => setTimeout(() => conn.close(), 1500)); return; }
+    setupConn(conn);
+  });
+  peer.on('call', onIncomingCall);
+}
+function setupConn(conn){
+  const id = conn.peer.slice(PFX.length);
+  conns[id] = conn;
+  conn.on('data', d => onData(id, d));
+  conn.on('close', () => { if(conns[id] === conn) delete conns[id]; });
+  conn.on('error', () => {});
+}
+function getConn(id){
+  return new Promise((res, rej) => {
+    const c = conns[id];
+    if(c && c.open) return res(c);
+    const nc = peer.connect(PFX + id, {reliable:true, metadata:{kind:'chat'}});
+    const to = setTimeout(() => { try{nc.close();}catch(e){} rej(new Error('timeout')); }, 6000);
+    nc.on('open', () => { clearTimeout(to); setupConn(nc); res(nc); });
+    nc.on('error', e => { clearTimeout(to); rej(e); });
+  });
+}
+
+/* ---------- mesajlar ---------- */
+function pushMsg(id, m){
+  (chats[id] = chats[id] || []).push(m);
+  if(cur === id) renderMsgs();
+  if(!m.me && (cur !== id || document.hidden)) unread[id] = (unread[id] || 0) + 1;
+  if(!m.me && document.hidden) notify(nameOf(id), m.file ? 'Dosya gönderdi' : m.text.slice(0, 80), 'm' + id);
+  renderList();
+}
+function onData(id, d){
+  if(!d || !d.t) return;
+  if(d.t === 'msg') pushMsg(id, {me:false, text:String(d.text).slice(0,5000), time:hhmm()});
+  else if(d.t === 'file'){
+    const blob = new Blob([d.data], {type: d.type || 'application/octet-stream'});
+    pushMsg(id, {me:false, file:{name:String(d.name).slice(0,120), type:d.type||'', url:URL.createObjectURL(blob)}, time:hhmm()});
+  }
+}
+let sending = false;
+async function sendText(){
+  const t = $('txt').value.trim();
+  if(!t || !cur || sending) return;
+  const to = cur;
+  sending = true;
+  try{
+    try{
+      const c = await getConn(to);
+      c.send({t: 'msg', text: t});
+      $('txt').value = '';
+      pushMsg(to, {me: true, text: t, time: hhmm()});
+      return;
+    }catch(e){}
+    if(!serverOk){ toast('Gönderilemedi: kişi çevrim dışı olabilir'); return; }
+    try{
+      const env = await encryptFor(to, t);
+      const r = await api('/send', {method: 'POST', body: JSON.stringify({to: to, iv: env.iv, data: env.data, spub: env.spub})});
+      if(r.status === 200){
+        $('txt').value = '';
+        pushMsg(to, {me: true, text: t, time: hhmm(), queued: true});
+        toast('Kişi çevrim dışı. Mesaj şifreli bırakıldı, girince iletilecek.');
+      } else if(r.status === 429) toast('Bu kişinin bekleyen mesaj kutusu dolu');
+      else toast('Gönderilemedi');
+    }catch(e){
+      toast(e && e.message === 'nouser' ? 'Bu kişi yeni sürüme henüz girmemiş, girince yazabilirsin' : 'Gönderilemedi');
+    }
+  } finally { sending = false; }
+}
+async function sendFile(f){
+  if(!f || !cur) return;
+  if(f.size > 25*1024*1024){ toast('Dosya en fazla 25 MB olabilir'); return; }
+  try{
+    const c = await getConn(cur);
+    c.send({t:'file', name:f.name, type:f.type, data: await f.arrayBuffer()});
+    pushMsg(cur, {me:true, file:{name:f.name, type:f.type, url:URL.createObjectURL(f)}, time:hhmm()});
+  }catch(e){ toast('Dosya gönderilemedi: dosyalar sadece çevrim içi kişiye gider'); }
+}
+
+/* ---------- liste ve sohbet görünümü ---------- */
+function mkAv(id, size){
+  const a = document.createElement('div'); a.className = 'av';
+  const st = document.createElement('span'); st.className = 'st' + (online[id] ? ' on' : '');
+  a.appendChild(st); setAv(a, nameOf(id), id);
+  return a;
+}
+function renderList(){
+  const L = $('list'); L.textContent = ''; updateTitle();
+  const q = $('q').value.trim().toLowerCase();
+  let ids = friends.map(f => f.id);
+  Object.keys(chats).forEach(id => { if(!ids.includes(id)) ids.push(id); });
+  if(q) ids = ids.filter(id => nameOf(id).toLowerCase().includes(q) || id.includes(q));
+  if(!ids.length){
+    const e = document.createElement('div'); e.className='empty';
+    e.textContent = q ? 'Aramana uyan kimse yok.' : 'Henüz kimse yok. Üstteki kişi ekle düğmesiyle 7 haneli bir numara ekle.';
+    L.appendChild(e); return;
+  }
+  ids.sort((a,b) => (online[b]?1:0) - (online[a]?1:0));
+  ids.forEach(id => {
+    const row = document.createElement('div'); row.className = 'fr' + (cur===id ? ' act' : '');
+    row.tabIndex = 0; row.setAttribute('role','button');
+    const nm = document.createElement('div'); nm.className = 'nm';
+    const b = document.createElement('b'); b.textContent = nameOf(id);
+    const s = document.createElement('span');
+    const arr = chats[id]; const last = arr && arr[arr.length-1];
+    s.textContent = last ? (last.me ? 'Sen: ' : '') + (last.file ? last.file.name : last.text) : id;
+    nm.append(b, s);
+    row.append(mkAv(id), nm);
+    if(unread[id]){ const bd = document.createElement('span'); bd.className='badge'; bd.textContent = unread[id]; row.appendChild(bd); }
+    if(isFriend(id)){
+      const x = document.createElement('button'); x.className='x'; x.textContent='✕'; x.title='Kişiyi sil';
+      x.onclick = ev => { ev.stopPropagation(); if(confirm(nameOf(id)+' silinsin mi?')){ friends = friends.filter(f=>f.id!==id); saveFriends(); if(cur===id) closeChat(); renderList(); } };
+      row.appendChild(x);
+    }
+    row.onclick = () => openChat(id);
+    row.onkeydown = e => { if(e.key==='Enter') openChat(id); };
+    L.appendChild(row);
+  });
+}
+function openChat(id){
+  cur = id; unread[id] = 0; mfilter = ''; $('mq').value = ''; $('msearch').classList.remove('show'); $('msearchbtn').classList.remove('act');
+  $('welcome').style.display = 'none';
+  $('chatview').style.display = 'flex';
+  $('hname').textContent = nameOf(id);
+  $('hid').textContent = (online[id] ? 'Çevrim içi · ' : '') + id;
+  const hav = $('hav'); setAv(hav, nameOf(id), id); $('hdot').className = 'st' + (online[id] ? ' on' : '');
+  $('hadd').style.display = isFriend(id) ? 'none' : '';
+  $('hedit').style.display = isFriend(id) ? '' : 'none';
+  document.body.classList.add('chat');
+  renderMsgs(); renderList(); $('txt').focus();
+}
+function closeChat(){
+  cur = null; $('chatview').style.display = 'none'; $('welcome').style.display = '';
+  document.body.classList.remove('chat'); renderList();
+}
+function renderMsgs(){
+  const box = $('msgs'); box.textContent = '';
+  const arr = chats[cur] || [];
+  if(!arr.length){
+    const s = document.createElement('div'); s.className='sys'; s.textContent = 'Bu sohbet geçici. Sayfayı kapatınca mesajlar silinir.'; box.appendChild(s);
+  }
+  const f = mfilter.toLowerCase();
+  arr.forEach(m => {
+    const txt = m.file ? m.file.name : m.text;
+    if(f && !txt.toLowerCase().includes(f)) return;
+    const el = document.createElement('div'); el.className = 'm' + (m.me ? ' me' : '');
+    if(m.file){
+      if(m.file.type.startsWith('image/')){ const im = document.createElement('img'); im.src = m.file.url; im.alt = m.file.name; el.appendChild(im); }
+      const a = document.createElement('a'); a.href = m.file.url; a.download = m.file.name; a.textContent = m.file.name; el.appendChild(a);
+    } else if(f){
+      const i = m.text.toLowerCase().indexOf(f);
+      el.append(m.text.slice(0,i));
+      const mk = document.createElement('mark'); mk.textContent = m.text.slice(i, i+f.length); el.appendChild(mk);
+      el.append(m.text.slice(i+f.length));
+    } else el.appendChild(document.createTextNode(m.text));
+    const t = document.createElement('small'); t.textContent = m.time + (m.queued ? ' · kişi girince iletilecek' : (m.late ? ' · çevrim dışıyken geldi' : '')); el.appendChild(t);
+    box.appendChild(el);
+  });
+  box.scrollTop = box.scrollHeight;
+}
+
+/* ---------- kişi ekleme / arama kutuları ---------- */
+$('q').oninput = renderList;
+$('msearchbtn').onclick = () => {
+  const s = $('msearch'); s.classList.toggle('show');
+  $('msearchbtn').classList.toggle('act', s.classList.contains('show'));
+  if(s.classList.contains('show')) $('mq').focus(); else { mfilter=''; $('mq').value=''; renderMsgs(); }
+};
+$('mq').oninput = e => { mfilter = e.target.value.trim(); renderMsgs(); };
+
+$('addopen').onclick = () => { $('addov').classList.add('show'); $('addid').focus(); };
+$('addcancel').onclick = () => $('addov').classList.remove('show');
+$('addbtn').onclick = () => {
+  const id = $('addid').value.trim();
+  if(!/^\d{7}$/.test(id)){ toast('Numara tam 7 haneli olmalı'); return; }
+  if(id === myId){ toast('Bu senin kendi numaran'); return; }
+  if(isFriend(id)){ toast('Bu kişi zaten ekli'); return; }
+  friends.push({id, name: $('addname').value.trim() || ('Kişi ' + id)});
+  saveFriends();
+  $('addid').value = ''; $('addname').value = '';
+  $('addov').classList.remove('show'); renderList();
+};
+$('hadd').onclick = () => {
+  if(!cur || isFriend(cur)) return;
+  friends.push({id:cur, name:'Kişi ' + cur}); saveFriends();
+  $('hadd').style.display = 'none'; $('hedit').style.display = ''; $('hname').textContent = nameOf(cur); renderList();
+};
+$('copy').onclick = () => { navigator.clipboard ? navigator.clipboard.writeText(myId).then(()=>toast('Numara kopyalandı'),()=>toast(myId)) : toast(myId); };
+
+/* ---------- tarama ---------- */
+function probe(id){
+  return new Promise(res => {
+    let done = false; const fin = v => { if(!done){ done = true; res(v); } };
+    try{
+      const c = peer.connect(PFX + id, {metadata:{kind:'scan'}});
+      const to = setTimeout(() => { try{c.close();}catch(e){} fin(false); }, 5000);
+      c.on('open', () => { clearTimeout(to); fin(true); setTimeout(()=>{ try{c.close();}catch(e){} }, 300); });
+      c.on('error', () => { clearTimeout(to); fin(false); });
+    }catch(e){ fin(false); }
+  });
+}
+$('scan').onclick = async () => {
+  if(!peer || !peer.open){ toast('Önce bağlantı kurulmasını bekle'); return; }
+  if(!friends.length){ toast('Önce kişi ekle'); return; }
+  $('scanov').classList.add('show'); $('scantitle').textContent = 'Taranıyor…'; $('scanres').textContent = '';
+  const results = await Promise.all(friends.map(async f => [f, await probe(f.id)]));
+  results.forEach(([f, ok]) => online[f.id] = ok);
+  const on = results.filter(r => r[1]).map(r => r[0]);
+  $('scantitle').textContent = on.length ? 'Çevrim içi olanlar (' + on.length + ')' : 'Şu an çevrim içi kimse yok';
+  const R = $('scanres'); R.textContent = '';
+  on.forEach(f => {
+    const row = document.createElement('div'); row.className = 'fr';
+    const nm = document.createElement('div'); nm.className = 'nm';
+    const b = document.createElement('b'); b.textContent = f.name; const s = document.createElement('span'); s.textContent = f.id;
+    nm.append(b, s);
+    const g = document.createElement('button'); g.className = 'btn'; g.textContent = 'Sohbet';
+    g.onclick = () => { $('scanov').classList.remove('show'); openChat(f.id); };
+    row.append(mkAv(f.id), nm, g); R.appendChild(row);
+  });
+  if(cur) openChat(cur); else renderList();
+};
+$('scanclose').onclick = () => $('scanov').classList.remove('show');
+
+/* ---------- gönderme ---------- */
+$('send').onclick = sendText;
+$('txt').onkeydown = e => { if(e.key === 'Enter') sendText(); };
+$('attach').onclick = () => $('file').click();
+$('file').onchange = e => { sendFile(e.target.files[0]); e.target.value = ''; };
+$('back').onclick = closeChat;
+
+/* ---------- sesli arama ---------- */
+let call = null, localStream = null, timer = null, tsec = 0, pendingIn = null;
+
+function voiceShow(state, name, withMute){
+  $('voicebar').classList.add('show');
+  $('vstate').textContent = state; $('vname').textContent = name;
+  $('vmute').style.display = withMute ? '' : 'none';
+}
+function startTimer(){
+  tsec = 0; clearInterval(timer);
+  timer = setInterval(() => { tsec++; $('vtime').textContent = String(Math.floor(tsec/60)).padStart(2,'0') + ':' + String(tsec%60).padStart(2,'0'); }, 1000);
+}
+function endCall(){
+  clearInterval(timer); $('vtime').textContent = '';
+  try{ call && call.close(); }catch(e){}
+  if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  call = null; $('remote').srcObject = null;
+  $('voicebar').classList.remove('show'); $('inov').classList.remove('show'); pendingIn = null;
+  $('vmute').classList.remove('act');
+}
+function inCall(id, c){
+  call = c;
+  c.on('stream', rs => { $('remote').srcObject = rs; voiceShow('Sesli bağlı', nameOf(id), true); startTimer(); });
+  c.on('close', endCall); c.on('error', endCall);
+}
+function showPerm(e){
+  const m = $('permmsg'), allow = $('permallow');
+  m.className = ''; allow.style.display = '';
+  if(!window.isSecureContext || !navigator.mediaDevices){
+    m.className = 'warn'; allow.style.display = 'none';
+    m.textContent = 'Bu sayfa güvenli adreste (https) açılmadığı için tarayıcı mikrofonu engelliyor. Sayfayı https:// ile başlayan bir adresten ya da bilgisayarda localhost üzerinden aç.';
+  } else if(e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')){
+    m.className = 'warn';
+    m.textContent = 'Mikrofon izni verilmemiş. Adres çubuğundaki kilit simgesine dokunup Mikrofon için İzin ver seç, sonra sayfayı yenile. İzin ver düğmesi de yeniden deneyebilir.';
+  } else if(e && e.name === 'NotFoundError'){
+    m.className = 'warn'; m.textContent = 'Mikrofon bulunamadı. Cihazında bir mikrofon takılı olduğundan emin ol.';
+  } else if(e && e.name === 'NotReadableError'){
+    m.className = 'warn'; m.textContent = 'Mikrofon başka bir uygulamada kullanılıyor. Onu kapatıp tekrar dene.';
+  } else {
+    m.textContent = 'Sesli arama için mikrofon izni gerekir. İzin ver düğmesine dokununca tarayıcı sana soracak.';
+  }
+  $('permov').classList.add('show');
+}
+async function askMic(){
+  if(!window.isSecureContext || !navigator.mediaDevices){ showPerm(); return; }
+  try{
+    const s = await navigator.mediaDevices.getUserMedia({audio:true});
+    s.getTracks().forEach(t => t.stop());
+    store.set('permSkip', true);
+    $('permov').classList.remove('show');
+    toast('Mikrofon hazır, sesli arama yapabilirsin');
+    setTimeout(maybePushPrompt, 1500);
+  }catch(e){ showPerm(e); }
+}
+async function mic(){
+  if(!window.isSecureContext || !navigator.mediaDevices){ showPerm(); return null; }
+  try{ return await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ showPerm(e); return null; }
+}
+$('callbtn').onclick = async () => {
+  if(!cur || call) return;
+  const id = cur;
+  localStream = await mic(); if(!localStream) return;
+  voiceShow('Aranıyor…', nameOf(id), false);
+  const c = peer.call(PFX + id, localStream);
+  if(!c){ endCall(); toast('Arama başlatılamadı'); return; }
+  inCall(id, c);
+  setTimeout(() => { if(call === c && !$('remote').srcObject){ endCall(); toast('Cevap yok'); } }, 30000);
+};
+$('vhang').onclick = endCall;
+$('vmute').onclick = () => {
+  if(!localStream) return;
+  const t = localStream.getAudioTracks()[0]; t.enabled = !t.enabled;
+  $('vmute').classList.toggle('act', !t.enabled);
+  $('vmute').title = t.enabled ? 'Mikrofonu sustur' : 'Mikrofonu aç';
+};
+function onIncomingCall(c){
+  const id = c.peer.slice(PFX.length);
+  if(call || pendingIn){ c.close(); return; }
+  pendingIn = c;
+  $('inname').textContent = nameOf(id);
+  const a = $('inav'); a.textContent = ''; setAv(a, nameOf(id), id);
+  $('inov').classList.add('show');
+  c.on('close', () => { if(pendingIn === c){ pendingIn = null; $('inov').classList.remove('show'); } });
+  $('inyes').onclick = async () => {
+    $('inov').classList.remove('show'); pendingIn = null;
+    localStream = await mic(); if(!localStream){ c.close(); return; }
+    c.answer(localStream); voiceShow('Bağlanıyor…', nameOf(id), false); inCall(id, c);
+  };
+  $('inno').onclick = () => { c.close(); $('inov').classList.remove('show'); pendingIn = null; };
+}
+
+window.addEventListener('beforeunload', () => { try{ peer.destroy(); }catch(e){} });
+function doRename(){
+  if(!cur || !isFriend(cur)) return;
+  const n = $('renname').value.trim();
+  if(!n){ toast('Ad boş olamaz'); return; }
+  friends.find(x => x.id === cur).name = n;
+  saveFriends();
+  $('renov').classList.remove('show');
+  $('hname').textContent = n; setAv($('hav'), n, cur); renderList();
+}
+$('hedit').onclick = () => { if(!cur) return; $('renname').value = nameOf(cur); $('renov').classList.add('show'); $('renname').focus(); $('renname').select(); };
+$('rensave').onclick = doRename;
+$('rencancel').onclick = () => $('renov').classList.remove('show');
+$('renname').onkeydown = e => { if(e.key === 'Enter') doRename(); };
+$('permallow').onclick = askMic;
+$('permlater').onclick = () => { store.set('permSkip', true); $('permov').classList.remove('show'); maybePushPrompt(); };
+$('permopen').onclick = () => showPerm();
+setTimeout(async () => {
+  try{ await ready; }catch(e){}
+  if(store.get('permSkip', false)){ maybePushPrompt(); return; }
+  if(navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name: 'microphone'}).then(s => { if(s.state !== 'granted') showPerm(); else maybePushPrompt(); }, () => showPerm());
+  } else showPerm();
+}, 700);
+renderList();
+ready = init();
+})();
+</script>
+</body>
+</html>
