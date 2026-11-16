@@ -1,0 +1,43 @@
+MOR SOHBET - ÇEVRİM DIŞI MESAJ + BİLDİRİM KURULUMU
+===================================================
+
+Bu paket artık tek dosya değil. İçinde:
+  public/          -> sayfa (index.html), bildirim dosyası (sw.js), simgeler
+  netlify/functions/api.mjs -> çevrim dışı mesaj kutusu (sunucu parçası)
+  package.json, netlify.toml -> Netlify'ın okuduğu ayarlar
+
+NASIL ÇALIŞIR
+- Karşı taraf çevrimiçiyse mesaj yine doğrudan P2P gider.
+- Çevrim dışıysa mesaj SENİN telefonunda şifrelenir (karşı tarafın açık
+  anahtarıyla), Netlify'da şifreli halde bekler. Sunucu içeriği okuyamaz.
+- Karşı tarafa "Ali sana yazmak istiyor" bildirimi gider.
+- Karşı taraf siteye girince mesaj açılır ve sunucudan silinir.
+- Bekleyen mesaj 14 gün sonra kendiliğinden silinir.
+- Sadece yazı mesajları çevrim dışı bırakılır. Dosyalar sadece çevrimiçi kişiye gider.
+
+KURULUM (Netlify'a sürükle-bırak YETMEZ, GitHub üzerinden)
+1) github.com'da ücretsiz hesap aç, "New repository" ile yeni depo oluştur.
+2) "uploading an existing file" bağlantısına tıkla. Bu klasörün İÇİNDEKİ her şeyi
+   (public, netlify klasörleri + package.json + netlify.toml) sayfaya sürükle,
+   "Commit changes" de.
+3) app.netlify.com -> "Add new site" -> "Import an existing project" -> GitHub
+   -> deponu seç -> "Deploy". Hiçbir ayarı değiştirme.
+4) Yayınlanınca adresi aç. Önce mikrofon, sonra bildirim izni sorulur.
+
+ESKİ ADRES
+- Yeni site yeni bir adres alır. Numaralar ve kişi listesi adrese bağlı olduğu
+  için adres değişirse herkes baştan başlar.
+- Aynı adresi korumak istersen: eski siteyi sil, yeni sitede "Site configuration ->
+  Change site name" ile eski adın aynısını ver.
+
+TEST
+- İki cihazdan gir, ikisinde de bildirim izni ver.
+- Birinin sekmesini/uygulamasını tamamen kapat.
+- Diğeri ona yazsın: "çevrim dışı, girince iletilecek" uyarısı çıkar.
+- Kapatan kişi bildirim alır, siteyi açınca mesaj gelir.
+
+NOTLAR
+- iPhone'da bildirim için siteyi önce "Ana ekrana ekle" yapmak gerekir (iOS 16.4+).
+- Mikrofon ve bildirim https adresinde çalışır. Netlify adresi zaten https'tir.
+- Tarayıcı verisini silen kişinin numarası ve eski şifreli mesajları kaybolur.
+- Netlify'ın ücretsiz kotası 50 kişi için genelde yeter.
